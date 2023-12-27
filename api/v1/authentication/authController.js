@@ -105,6 +105,9 @@ async function loginUser(req, res) {
   if (user == null) {
     return res.status(400).send({ message: "Forkert email eller password" });
   }
+  if (user.deleted_at != null) {
+    return res.status(400).send({ message: "Forkert email eller password." });
+  }
   try {
     // Check if password is correct
     if (await bcrypt.compare(password, user.user_password)) {

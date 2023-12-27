@@ -68,6 +68,7 @@ model User {
   user_id       Int             @id @default(autoincrement())
   user_email    String          @db.VarChar(256)
   user_password String          @db.VarChar(256)
+  deleted_at    DateTime?       @db.Date
   roles         User_role[]     // A user can have multiple roles (e.g., ["admin", "user"])
   customer      Customer?
   tokens        User_token[]
