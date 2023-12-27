@@ -1,6 +1,7 @@
 import express from "express";
 import authController from "./authController.js";
 import rateLimit from "express-rate-limit";
+import { authenticateToken } from "../../../middleware/authToken.js";
 
 const authRouter = express.Router();
 
@@ -17,5 +18,6 @@ authRouter.post("/login", authController.loginUser);
 authRouter.post("/register", authController.registerUser);
 authRouter.get("/logout", authController.logoutUser);
 authRouter.get("/refresh", authController.refreshToken);
+authRouter.delete("/users", authenticateToken, authController.deleteUser);
 
 export { authRouter };

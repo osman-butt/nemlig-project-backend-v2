@@ -220,4 +220,22 @@ async function refreshToken(req, res) {
   }
 }
 
-export default { registerUser, loginUser, logoutUser, refreshToken };
+async function deleteUser(req, res) {
+  const user_email = req.user_email;
+  try {
+    const user = await authModel.getUsersByEmail(user_email);
+    if (user == null) return res.sendStatus(403);
+    await authModel.softDeleteUser(user.user_id);
+    res.sendStatus(204);
+  } catch (error) {
+    res.status(500).send(error);
+  }
+}
+
+export default {
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshToken,
+  deleteUser,
+};

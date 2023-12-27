@@ -102,6 +102,35 @@ async function deleteUserToken(token_id) {
   });
 }
 
+async function getUsersByEmail(email) {
+  try {
+    const users = await prisma.user.findFirst({
+      where: {
+        user_email: email,
+      },
+      include: {
+        roles: true,
+        customer: true,
+      },
+    });
+
+    return users;
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+async function softDeleteUser(user_id) {
+  await prisma.user.update({
+    where: {
+      user_id: user_id,
+    },
+    data: {
+      deleted_at: new Date().toISOString(),
+    },
+  });
+}
+
 export default {
   getUsers,
   setUserCustomer,
@@ -109,4 +138,6 @@ export default {
   setUserToken,
   getUserToken,
   deleteUserToken,
+  getUsersByEmail,
+  softDeleteUser,
 };
