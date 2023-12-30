@@ -66,6 +66,7 @@ async function createPriceMatchPriceInDB(remaProducts) {
 // GET PRODUCT IDS FOR PRICEMATCH
 async function getProductIdsFromDB() {
   const products = await prisma.product.findMany({
+    where: { deleted: false },
     select: {
       product_id: true,
     },

@@ -12,6 +12,7 @@ model Product {
   product_name        String                @db.VarChar(256)
   product_underline   String                @db.VarChar(256)
   product_description String?               @db.VarChar(256)
+  deleted             Boolean               @default(false)
   favorites           Favorite[]
   inventory           Inventory?
   order_items         Order_item[]

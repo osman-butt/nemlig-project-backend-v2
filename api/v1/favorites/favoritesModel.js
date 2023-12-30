@@ -25,7 +25,12 @@ async function getCustomerIdFromUserEmail(userEmail) {
 async function getFavoritesFromDB(userEmail, category, sort, label) {
   const customerId = await getCustomerIdFromUserEmail(userEmail); // UserID should also be passed in the request body instead of customerId, since we convert it here
   // Define the where clause for the Prisma query
-  let where = { customer_id: customerId };
+  let where = {
+    customer_id: customerId,
+    products: {
+      deleted: false,
+    },
+  };
   // If a category is passed in the request query, add it to the where clause
   if (category) {
     where.products = {
@@ -71,7 +76,7 @@ async function getFavoritesFromDB(userEmail, category, sort, label) {
   });
 
   // Flatten the favorites array for the sorting function to work
-  let flatFavorites = favorites.map(favorite => ({
+  let flatFavorites = favorites.map((favorite) => ({
     favorite_id: favorite.favorite_id,
     customer_id: favorite.customer_id,
     ...favorite.products,
@@ -118,7 +123,10 @@ async function deleteFavoriteFromDB(favoriteId) {
 async function searchFavoritesFromDB(userEmail, search, category, sort, label) {
   const customerId = await getCustomerIdFromUserEmail(userEmail);
   // Define the where clause for the Prisma query
-  let where = { customer_id: customerId };
+  let where = {
+    customer_id: customerId,
+    products: { deleted: false },
+  };
   // If a category is passed in the request query, add it to the where clause
   if (category) {
     where.products = {
@@ -164,7 +172,7 @@ async function searchFavoritesFromDB(userEmail, search, category, sort, label) {
   });
 
   // Flatten the favorites array for the Fuse search to work properly (Fuse can't search nested objects)
-  const flatFavorites = favorites.map(favorite => ({
+  const flatFavorites = favorites.map((favorite) => ({
     favorite_id: favorite.favorite_id,
     customer_id: favorite.customer_id,
     ...favorite.products,
@@ -179,7 +187,7 @@ async function searchFavoritesFromDB(userEmail, search, category, sort, label) {
   let result = fuse.search(search);
 
   // Map the result to only return the product object
-  result = result.map(item => item.item);
+  result = result.map((item) => item.item);
   // return result; // IF WE WANT TO RETURN IN ITEM OBJECT WHERE SCORE AND MATCHES CAN BE INCLUDED
 
   // If a sort parameter is passed in the request query, sort the favorites
@@ -189,10 +197,4 @@ async function searchFavoritesFromDB(userEmail, search, category, sort, label) {
   return result;
 }
 
-export {
-  getFavoritesFromDB,
-  getCustomerIdFromUserEmail,
-  postFavoriteInDB,
-  deleteFavoriteFromDB,
-  searchFavoritesFromDB,
-};
+export { getFavoritesFromDB, getCustomerIdFromUserEmail, postFavoriteInDB, deleteFavoriteFromDB, searchFavoritesFromDB };

@@ -2,7 +2,6 @@ import { PrismaClient } from "@prisma/client";
 import Fuse from "fuse.js";
 import { sortProducts } from "../sortUtils/sortUtils.js";
 
-
 const prisma = new PrismaClient();
 
 // Get customer ID from user ID (assuming the user ID is passed in the request body)
@@ -25,7 +24,7 @@ async function getCustomerIdFromUserEmail(userEmail) {
 async function getProductsFromDB(category, sort, label, userEmail) {
   // Define the where and orderBy clause for the Prisma query
   let orderBy = {};
-  let where = {};
+  let where = { deleted: false };
   let customerId;
 
   // Get the customer_id from the user_email only if userEmail is defined
@@ -78,9 +77,7 @@ async function getProductsFromDB(category, sort, label, userEmail) {
 
     for (let product of products) {
       // Check if a favorite exists in the fetched favorites
-      const userFavorite = userFavorites.find(
-        favorite => favorite.product_id === product.product_id
-      );
+      const userFavorite = userFavorites.find((favorite) => favorite.product_id === product.product_id);
       // If a favorite is found, add its favorite_id to the product, if not return undefined
       product.favorite_id = userFavorite ? userFavorite.favorite_id : undefined;
     }
@@ -96,7 +93,7 @@ async function getProductsFromDB(category, sort, label, userEmail) {
 
 async function getProductByIdFromDB(productId) {
   return await prisma.product.findUnique({
-    where: { product_id: productId },
+    where: { product_id: productId, deleted: false },
     include: {
       images: true,
       labels: true,
@@ -116,18 +113,18 @@ async function postProductsInDB(productData) {
       // Create related images
       images: {
         createMany: {
-          data: productData.images.map(image => ({
+          data: productData.images.map((image) => ({
             image_url: image.image_url,
           })),
         },
       },
       labels: {
         // Connect existing labels to the product
-        connect: productData.labels.map(label => ({ label_id: label })),
+        connect: productData.labels.map((label) => ({ label_id: label })),
       },
       categories: {
         // Connect existing categories to the product
-        connect: productData.categories.map(category => ({
+        connect: productData.categories.map((category) => ({
           category_id: category,
         })),
       },
@@ -140,7 +137,7 @@ async function postProductsInDB(productData) {
       // Create related prices
       prices: {
         createMany: {
-          data: productData.prices.map(price => ({
+          data: productData.prices.map((price) => ({
             price: price.price,
             starting_at: new Date(price.starting_at).toISOString(),
             is_campaign: price.is_campaign,
@@ -163,13 +160,13 @@ async function updateProductInDB(productId, productData) {
       labels: {
         set: [],
         // Connect existing labels to the product
-        connect: productData.labels.map(label_id => ({ label_id })),
+        connect: productData.labels.map((label_id) => ({ label_id })),
       },
       // Disconnect all existing categories from the product
       categories: {
         set: [],
         // Connect existing categories to the product
-        connect: productData.categories.map(category_id => ({ category_id })),
+        connect: productData.categories.map((category_id) => ({ category_id })),
       },
       // Update related inventory
       inventory: {
@@ -184,7 +181,7 @@ async function updateProductInDB(productId, productData) {
   for (let image of productData.images) {
     // If the image already has an ID, it's an existing image
     if (image.image_id) {
-      // Update the existing image's URL in the database 
+      // Update the existing image's URL in the database
       const updatedImage = await prisma.productimage.update({
         where: { image_id: image.image_id },
         data: { image_url: image.image_url },
@@ -261,23 +258,18 @@ async function updateProductInDB(productId, productData) {
   });
 }
 
+// Update product as deleted
 async function deleteProductFromDB(productId) {
-  // DELETE RELATIONS ON JUNCTION TABLES - USING RAW SQL, AS WE CANT ADD CASCADING DELETES ON MANY-TO-MANY IMPLICIT RELATION TABLES
-  await prisma.$queryRaw`DELETE FROM _CategoryToProduct WHERE B = ${productId};`;
-  await prisma.$queryRaw`DELETE FROM _LabelToProduct WHERE B = ${productId};`;
-  await prisma.$queryRaw`DELETE FROM Productimage WHERE product_id = ${productId};`;
-  await prisma.$queryRaw`DELETE FROM Inventory WHERE product_id = ${productId};`;
-  await prisma.$queryRaw`DELETE FROM Price WHERE product_id = ${productId};`;
-  await prisma.$queryRaw`DELETE FROM Order_item WHERE product_id = ${productId};`;
-
-  // DELETE PRODUCT
-  await prisma.product.delete({ where: { product_id: productId } });
+  await prisma.product.update({
+    where: { product_id: productId },
+    data: { deleted: true },
+  });
 }
 
 // SEARCH FUNCTIONALITY
 async function searchProductsFromDB(search, category, sort, label, userEmail) {
   // Define the where clause for the Prisma query
-  let where = {};
+  let where = { deleted: false };
   let products;
   let customerId;
 
@@ -303,40 +295,23 @@ async function searchProductsFromDB(search, category, sort, label, userEmail) {
     };
   }
   // Fetch the products from the DB based on the where clause
-  if (category || label) {
-    products = await prisma.product.findMany({
-      where,
-      include: {
-        images: true,
-        labels: true,
-        categories: true,
-        inventory: true,
-        prices: {
-          where: {
-            ending_at: {
-              gt: new Date(),
-            },
+  // Always include the where clause
+  products = await prisma.product.findMany({
+    where,
+    include: {
+      images: true,
+      labels: true,
+      categories: true,
+      inventory: true,
+      prices: {
+        where: {
+          ending_at: {
+            gt: new Date(),
           },
         },
       },
-    });
-  } else {
-    products = await prisma.product.findMany({
-      include: {
-        images: true,
-        labels: true,
-        categories: true,
-        inventory: true,
-        prices: {
-          where: {
-            ending_at: {
-              gt: new Date(),
-            },
-          },
-        },
-      },
-    });
-  }
+    },
+  });
 
   if (customerId) {
     // Fetch all favorites for the current user
@@ -348,9 +323,7 @@ async function searchProductsFromDB(search, category, sort, label, userEmail) {
 
     for (let product of products) {
       // Check if a favorite exists in the fetched favorites
-      const userFavorite = userFavorites.find(
-        favorite => favorite.product_id === product.product_id
-      );
+      const userFavorite = userFavorites.find((favorite) => favorite.product_id === product.product_id);
       // If a favorite is found, add its favorite_id to the product, if not return undefined
       product.favorite_id = userFavorite ? userFavorite.favorite_id : undefined;
     }
@@ -382,7 +355,6 @@ async function getAllLabelsFromDB() {
 async function getAllCategoriesFromDB() {
   return await prisma.category.findMany();
 }
-
 
 export {
   getProductsFromDB,
