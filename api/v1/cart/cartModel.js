@@ -3,7 +3,7 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function getCartFromDb(customer_id) {
-  return await prisma.cart.findFirst({
+  const cart = await prisma.cart.findFirst({
     where: {
       customer_id: customer_id,
     },
@@ -30,6 +30,12 @@ async function getCartFromDb(customer_id) {
       customers: true,
     },
   });
+
+  // Filter out soft-deleted products from cart
+  if (cart) {
+    cart.cart_items = cart.cart_items.filter((item) => !item.products.deleted);
+  }
+  return cart;
 }
 
 async function getUsersByEmail(email) {
